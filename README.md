@@ -11,6 +11,30 @@ Two Dapr services that extract structured content from documents using OpenAI st
   5. `merge_extractions` — combine the partial JSONs into one schema-conforming result (only runs for chunked documents)
   6. `write_results` — write `extracted.json` back to blob storage
 
+```text
+          1. POST /upload (file + schema)
+client ------------------------------------> upload (:8100)
+                                               |        |
+                    2. store original.{ext}    |        |  3. publish {job_id, doc_blob, schema}
+                                               v        v
+                                 Azurite blob        Redis pub/sub
+                                 storage             topic: process-topic
+                                 documents/               |
+                                 {job_id}/                |  4. subscribe -> schedule workflow
+                                      ^                   v
+                                      |              process (:8101)
+                                      |              Dapr Workflow (instance id = job_id)
+                                      |                   |
+                                      +-------------------+
+                                        5. read original; write converted.md,
+                                           chunks/*.md, extracted.json
+
+client <------------------------------------ 6. GET /status/{job_id} | /jobs | /result | /markdown
+
+workflow:  retrieve_document -> convert_to_markdown -> plan_chunks
+             -> extract_structured (parallel, one per chunk) -> merge_extractions -> write_results
+```
+
 Blob layout per job: `documents/{job_id}/original.{ext}`, `documents/{job_id}/converted.md`, `documents/{job_id}/extracted.json`, plus `documents/{job_id}/chunks/chunk-NNN.md` for documents large enough to be split.
 
 ## Prerequisites
