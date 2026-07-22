@@ -87,6 +87,8 @@ curl http://localhost:8101/status/<job_id>
 
 ## Test UI
 
+![Test UI with the upload panel and live documents table](docs/test-ui.png)
+
 `ui/index.html` is a single-file stress-test UI: pick a document, edit or load a schema (prefilled with the sample invoice schema), choose how many parallel uploads to fire (1–500), and watch jobs complete in the documents table (auto-refresh, view extracted JSON / converted markdown per job). Open it with the VS Code built-in browser or any static server — both services allow all CORS origins for local dev. The service base URLs are editable in the header (persisted in localStorage) in case VS Code server forwards the ports under different addresses.
 
 Supporting endpoints on the process service: `GET /jobs` (blob inventory + workflow status per job), `GET /result/{job_id}`, `GET /markdown/{job_id}`.
