@@ -55,6 +55,24 @@ docker compose up -d          # start Azurite
 dapr run -f dapr.yaml         # start both services + sidecars
 ```
 
+## Diagrid Dev Dashboard (optional)
+
+The free [Diagrid Dev Dashboard](https://docs.diagrid.io/develop/local-development/dev-dashboard/) gives a live view of everything Dapr running locally — very handy for inspecting the `doc_processing_wf` workflow executions in this project.
+
+```bash
+# install (macOS/Linux; installs to ~/.local/bin)
+curl -sSL https://raw.githubusercontent.com/diagridio/dev-dashboard/main/scripts/install.sh | sh
+
+diagrid-dev-dashboard        # opens http://localhost:9090
+```
+
+No configuration needed: both apps started by `dapr run -f dapr.yaml` are discovered automatically, and workflow data is read straight from the local Redis state store. Useful views for this project:
+
+- **Workflows** — list `doc_processing_wf` executions (instance id = job id), inspect the event history per activity, view input/output payloads, and terminate or purge stuck instances
+- **Apps** — health, ports, and metadata of the `upload` and `process` apps
+- **Components / Subscriptions** — the `blobstore`, `pubsub`, and `statestore` components and the `process-topic` subscription
+- **Logs** — live sidecar and app logs with filtering
+
 ## Try it
 
 ```bash
