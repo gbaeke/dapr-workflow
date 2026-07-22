@@ -3,13 +3,15 @@
 Two Dapr services that extract structured content from documents using OpenAI structured outputs:
 
 - **upload** (port 8100) — accepts a document + a JSON schema via `POST /upload`, stores the document in blob storage (Azurite locally) through the Dapr `blobstore` binding, and publishes a message on the `process-topic` topic.
-- **process** (port 8101) — subscribes to `process-topic` and runs a **Dapr Workflow** (instance id = job id) with four retryable activities:
-  1. `retrieve_document` — get the original document via the blob binding
-  2. `convert_to_markdown` — local conversion with [MarkItDown](https://github.com/microsoft/markitdown) (pdf, docx, pptx, xlsx, html, ...)
-  3. `extract_structured` — OpenAI structured outputs (`json_schema` response format) using the uploaded schema
-  4. `write_results` — write `converted.md` + `extracted.json` back to blob storage
+- **process** (port 8101) — subscribes to `process-topic` and runs a **Dapr Workflow** (instance id = job id) with six retryable activities:
+  1. `retrieve_document` — verify the original document is retrievable via the blob binding (returns only its size)
+  2. `convert_to_markdown` — local conversion with [MarkItDown](https://github.com/microsoft/markitdown) (pdf, docx, pptx, xlsx, html, ...); writes `converted.md` to blob storage and returns the blob name
+  3. `plan_chunks` — split the markdown into chunk blobs if it exceeds the extraction token budget (usually a no-op returning the single markdown blob)
+  4. `extract_structured` — OpenAI structured outputs (`json_schema` response format) using the uploaded schema; fans out in parallel, one call per chunk, when the document was split
+  5. `merge_extractions` — combine the partial JSONs into one schema-conforming result (only runs for chunked documents)
+  6. `write_results` — write `extracted.json` back to blob storage
 
-Blob layout per job: `documents/{job_id}/original.{ext}`, `documents/{job_id}/converted.md`, `documents/{job_id}/extracted.json`.
+Blob layout per job: `documents/{job_id}/original.{ext}`, `documents/{job_id}/converted.md`, `documents/{job_id}/extracted.json`, plus `documents/{job_id}/chunks/chunk-NNN.md` for documents large enough to be split.
 
 ## Prerequisites
 
