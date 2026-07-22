@@ -66,6 +66,8 @@ curl -sSL https://raw.githubusercontent.com/diagridio/dev-dashboard/main/scripts
 diagrid-dev-dashboard        # opens http://localhost:9090
 ```
 
+![Diagrid Dev Dashboard showing the upload and process apps](docs/dev-dashboard.png)
+
 No configuration needed: both apps started by `dapr run -f dapr.yaml` are discovered automatically, and workflow data is read straight from the local Redis state store. Useful views for this project:
 
 - **Workflows** — list `doc_processing_wf` executions (instance id = job id), inspect the event history per activity, view input/output payloads, and terminate or purge stuck instances
