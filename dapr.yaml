@@ -1,0 +1,14 @@
+version: 1
+common:
+  resourcesPath: ./components
+apps:
+  - appID: upload
+    appDirPath: ./upload/
+    appPort: 8100
+    daprHTTPPort: 3500
+    command: ["uv", "run", "uvicorn", "app:app", "--port", "8100"]
+  - appID: process
+    appDirPath: ./process/
+    appPort: 8101
+    daprHTTPPort: 3501
+    command: ["uv", "run", "uvicorn", "app:app", "--port", "8101"]

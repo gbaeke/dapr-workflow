@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dapr doc extraction — stress test</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --border: #d9dce1; --text: #1f2328; --muted: #6a7280;
+    --accent: #2563eb; --ok: #15803d; --run: #2563eb; --fail: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .cfg { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  header .cfg input { width: 200px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 20px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .panel h2 { font-size: 14px; margin: 0 0 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=file], input[type=number], textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fff; }
+  textarea { font-family: ui-monospace, Menlo, monospace; font-size: 11px; height: 160px; resize: vertical; }
+  button { padding: 7px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+  .counts { margin-top: 12px; font-size: 13px; }
+  .counts span { margin-right: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  td.actions { text-align: right; }
+  td .link { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0 6px; font-size: 12px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; background: var(--muted); }
+  .badge.COMPLETED { background: var(--ok); }
+  .badge.RUNNING, .badge.PENDING, .badge.SUSPENDED { background: var(--run); }
+  .badge.FAILED, .badge.TERMINATED { background: var(--fail); }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .muted { color: var(--muted); }
+  dialog { width: min(760px, 90vw); max-height: 82vh; border: 1px solid var(--border); border-radius: 8px; padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog .head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  dialog pre { margin: 0; padding: 14px; overflow: auto; max-height: 68vh; font-size: 12px; background: #fafafa; }
+  #toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  #toolbar .spacer { flex: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dapr doc extraction — stress test</h1>
+  <div class="cfg">
+    <span>upload svc</span><input id="uploadBase" value="http://localhost:8100">
+    <span>process svc</span><input id="processBase" value="http://localhost:8101">
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Upload</h2>
+    <label>Document</label>
+    <input type="file" id="docFile">
+    <label>Schema (JSON) — edit below or load from file</label>
+    <input type="file" id="schemaFile" accept=".json,application/json">
+    <textarea id="schemaText" spellcheck="false"></textarea>
+    <label>Number of uploads</label>
+    <input type="number" id="count" min="1" max="500" value="5">
+    <div class="row">
+      <button id="uploadBtn">Upload</button>
+      <span id="uploadMsg" class="muted"></span>
+    </div>
+    <div class="counts" id="uploadCounts"></div>
+  </section>
+
+  <section class="panel">
+    <div id="toolbar">
+      <h2 style="margin:0">Documents</h2>
+      <span id="jobsSummary" class="muted"></span>
+      <div class="spacer"></div>
+      <label style="margin:0;display:flex;gap:6px;align-items:center;font-size:12px">
+        <input type="checkbox" id="autoRefresh" checked style="width:auto"> auto-refresh
+      </label>
+      <button class="secondary" id="refreshBtn">Refresh</button>
+    </div>
+    <table>
+      <thead><tr><th>Job</th><th>Status</th><th>Last update</th><th>Files</th><th></th></tr></thead>
+      <tbody id="jobsBody"><tr><td colspan="5" class="muted">no data yet</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<dialog id="viewer">
+  <div class="head">
+    <strong id="viewerTitle" class="mono"></strong>
+    <button class="secondary" onclick="viewer.close()">Close</button>
+  </div>
+  <pre id="viewerBody"></pre>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const uploadBase = () => $('uploadBase').value.replace(/\/$/, '');
+const processBase = () => $('processBase').value.replace(/\/$/, '');
+
+// persist endpoint config (useful when ports are forwarded by VS Code server)
+for (const id of ['uploadBase', 'processBase']) {
+  const saved = localStorage.getItem('cfg.' + id);
+  if (saved) $(id).value = saved;
+  $(id).addEventListener('change', () => localStorage.setItem('cfg.' + id, $(id).value));
+}
+
+const DEFAULT_SCHEMA = {
+  type: "object",
+  properties: {
+    invoice_number: { type: "string" },
+    invoice_date: { type: "string" },
+    vendor_name: { type: "string" },
+    customer_name: { type: "string" },
+    currency: { type: "string" },
+    total_amount: { type: "number" },
+    line_items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          description: { type: "string" },
+          quantity: { type: "number" },
+          unit_price: { type: "number" },
+          amount: { type: "number" }
+        },
+        required: ["description", "quantity", "unit_price", "amount"],
+        additionalProperties: false
+      }
+    }
+  },
+  required: ["invoice_number", "invoice_date", "vendor_name", "customer_name", "currency", "total_amount", "line_items"],
+  additionalProperties: false
+};
+$('schemaText').value = JSON.stringify(DEFAULT_SCHEMA, null, 2);
+
+$('schemaFile').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (f) $('schemaText').value = await f.text();
+});
+
+$('uploadBtn').addEventListener('click', async () => {
+  const file = $('docFile').files[0];
+  if (!file) { $('uploadMsg').textContent = 'pick a document first'; return; }
+  let schema;
+  try { schema = JSON.stringify(JSON.parse($('schemaText').value)); }
+  catch (err) { $('uploadMsg').textContent = 'schema is not valid JSON: ' + err.message; return; }
+
+  const n = Math.max(1, Math.min(500, parseInt($('count').value) || 1));
+  $('uploadBtn').disabled = true;
+  $('uploadMsg').textContent = `firing ${n} parallel upload(s)...`;
+  let ok = 0, fail = 0;
+  const started = performance.now();
+
+  const one = async () => {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('schema', schema);
+    const resp = await fetch(uploadBase() + '/upload', { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error(await resp.text());
+    return resp.json();
+  };
+
+  const results = await Promise.allSettled(Array.from({ length: n }, one));
+  for (const r of results) r.status === 'fulfilled' ? ok++ : fail++;
+  const secs = ((performance.now() - started) / 1000).toFixed(1);
+  $('uploadMsg').textContent = '';
+  $('uploadCounts').innerHTML =
+    `<span style="color:var(--ok)">accepted: ${ok}</span>` +
+    `<span style="color:var(--fail)">failed: ${fail}</span>` +
+    `<span class="muted">${secs}s</span>` +
+    (fail ? `<div class="muted mono" style="margin-top:6px">${results.find(r => r.status === 'rejected')?.reason?.message ?? ''}</div>` : '');
+  $('uploadBtn').disabled = false;
+  refreshJobs();
+});
+
+async function refreshJobs() {
+  try {
+    const resp = await fetch(processBase() + '/jobs');
+    const data = await resp.json();
+    const rows = data.jobs.map(j => {
+      const files = Object.keys(j.files).map(f => f.split('.').pop()).sort().join(', ');
+      const lm = j.last_modified ? new Date(j.last_modified).toLocaleTimeString() : '';
+      return `<tr>
+        <td class="mono">${j.job_id.slice(0, 12)}…</td>
+        <td><span class="badge ${j.status}">${j.status}</span></td>
+        <td class="muted">${lm}</td>
+        <td class="muted">${files}</td>
+        <td class="actions">
+          ${j.has_result ? `<button class="link" onclick="view('${j.job_id}','result')">JSON</button>
+          <button class="link" onclick="view('${j.job_id}','markdown')">markdown</button>` : ''}
+        </td>
+      </tr>`;
+    });
+    $('jobsBody').innerHTML = rows.join('') || '<tr><td colspan="5" class="muted">no documents yet</td></tr>';
+    const byStatus = {};
+    for (const j of data.jobs) byStatus[j.status] = (byStatus[j.status] || 0) + 1;
+    $('jobsSummary').textContent = data.count
+      ? `${data.count} total — ` + Object.entries(byStatus).map(([s, c]) => `${c} ${s.toLowerCase()}`).join(', ')
+      : '';
+  } catch (err) {
+    $('jobsBody').innerHTML = `<tr><td colspan="5" style="color:var(--fail)">cannot reach process service: ${err.message}</td></tr>`;
+  }
+}
+
+async function view(jobId, kind) {
+  const resp = await fetch(`${processBase()}/${kind}/${jobId}`);
+  const text = await resp.text();
+  $('viewerTitle').textContent = `${jobId} — ${kind === 'result' ? 'extracted.json' : 'converted.md'}`;
+  try { $('viewerBody').textContent = kind === 'result' ? JSON.stringify(JSON.parse(text), null, 2) : text; }
+  catch { $('viewerBody').textContent = text; }
+  $('viewer').showModal();
+}
+
+$('refreshBtn').addEventListener('click', refreshJobs);
+setInterval(() => { if ($('autoRefresh').checked) refreshJobs(); }, 2500);
+refreshJobs();
+</script>
+</body>
+</html>

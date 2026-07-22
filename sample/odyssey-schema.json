@@ -1,0 +1,84 @@
+{
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "author": { "type": "string" },
+    "translator": { "type": "string" },
+    "publisher": { "type": "string" },
+    "opening_line": {
+      "type": "string",
+      "description": "The first line of Book I of the poem itself, quoted verbatim"
+    },
+    "narrative_summary": {
+      "type": "string",
+      "description": "3-4 sentence summary of the entire epic"
+    },
+    "protagonist": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "epithets": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Recurring epithets used for the protagonist, e.g. 'resourceful'"
+        },
+        "goal": { "type": "string" }
+      },
+      "required": ["name", "epithets", "goal"],
+      "additionalProperties": false
+    },
+    "main_characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["mortal", "god", "monster", "nymph"] },
+          "role_in_story": { "type": "string" }
+        },
+        "required": ["name", "kind", "role_in_story"],
+        "additionalProperties": false
+      },
+      "description": "The 8-12 most important characters, excluding the protagonist"
+    },
+    "books": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": { "type": "integer" },
+          "summary": { "type": "string", "description": "One sentence" }
+        },
+        "required": ["number", "summary"],
+        "additionalProperties": false
+      },
+      "description": "All 24 books in order"
+    },
+    "perils_faced": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "book": { "type": "integer" },
+          "how_survived": { "type": "string" }
+        },
+        "required": ["name", "book", "how_survived"],
+        "additionalProperties": false
+      },
+      "description": "Monsters and perils encountered during the wanderings (Cyclops, Sirens, Skylla, ...)"
+    },
+    "locations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Key places in the story, e.g. Ithaka, Troy, Scheria"
+    },
+    "themes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "4-6 central themes"
+    }
+  },
+  "required": ["title", "author", "translator", "publisher", "opening_line", "narrative_summary", "protagonist", "main_characters", "books", "perils_faced", "locations", "themes"],
+  "additionalProperties": false
+}
