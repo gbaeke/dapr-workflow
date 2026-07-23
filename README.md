@@ -39,20 +39,36 @@ Blob layout per job: `documents/{job_id}/original.{ext}`, `documents/{job_id}/co
 
 ## Prerequisites
 
-- `dapr init` has been run (Redis is used for pub/sub and as the workflow actor state store)
-- Docker (for Azurite), [uv](https://docs.astral.sh/uv/) (Python envs)
-- A `process/.env` file with your OpenAI credentials:
-
-  ```dotenv
-  OPENAI_API_KEY=sk-...
-  # OPENAI_MODEL=gpt-5-mini   # optional, this is the default
-  ```
+- **Docker** — runs Azurite, plus the Redis and placement containers that `dapr init` creates
+- **[Dapr CLI](https://docs.dapr.io/getting-started/install-dapr-cli/)** — `brew install dapr/tap/dapr-cli` on macOS (see the link for Linux/Windows)
+- **[uv](https://docs.astral.sh/uv/)** — manages the Python environments; it reads `.python-version` and downloads Python 3.12 automatically, so no separate Python install is needed
+- **An OpenAI API key**
 
 ## Run
 
+From zero to a running system:
+
 ```bash
-docker compose up -d          # start Azurite
-dapr run -f dapr.yaml         # start both services + sidecars
+# 1. clone the repo
+git clone https://github.com/gbaeke/dapr-workflow.git
+cd dapr-workflow
+
+# 2. initialize Dapr (one-time; Docker must be running).
+#    Sets up the Redis container used for pub/sub and workflow state.
+dapr init
+
+# 3. add your OpenAI API key
+cp process/.env.example process/.env
+#    then edit process/.env:
+#    OPENAI_API_KEY=sk-...
+#    OPENAI_MODEL=gpt-5-mini   # optional, this is the default
+
+# 4. start Azurite (local blob storage emulator)
+docker compose up -d
+
+# 5. start both services + Dapr sidecars
+#    (first run: uv creates the virtualenvs and installs dependencies automatically)
+dapr run -f dapr.yaml
 ```
 
 ## Diagrid Dev Dashboard (optional)
