@@ -12,3 +12,8 @@ apps:
     appPort: 8101
     daprHTTPPort: 3501
     command: ["uv", "run", "uvicorn", "app:app", "--port", "8101"]
+  - appID: analyze
+    appDirPath: ./analyze/
+    appPort: 8102
+    daprHTTPPort: 3502
+    command: ["uv", "run", "uvicorn", "app:app", "--port", "8102"]

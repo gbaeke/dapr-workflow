@@ -13,7 +13,11 @@ logger = logging.getLogger("upload")
 
 BINDING_NAME = "blobstore"
 PUBSUB_NAME = "pubsub"
-TOPIC_NAME = "process-topic"
+# pipeline -> (topic, service port for status URLs)
+PIPELINES = {
+    "extract": ("process-topic", 8101),
+    "analyze": ("analyze-topic", 8102),
+}
 
 app = FastAPI(title="upload")
 
@@ -27,13 +31,25 @@ app.add_middleware(
 
 
 @app.post("/upload")
-async def upload(file: UploadFile = File(...), schema: str = Form(...)):
-    """Accept a document and a JSON schema, store the document in blob storage
-    and publish a processing request for the process service."""
-    try:
-        schema_obj = json.loads(schema)
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=400, detail=f"schema is not valid JSON: {e}")
+async def upload(
+    file: UploadFile = File(...),
+    schema: str | None = Form(None),
+    pipeline: str = Form("extract"),
+):
+    """Accept a document, store it in blob storage and publish a request for the
+    chosen pipeline: 'extract' (structured extraction against a JSON schema, the
+    default) or 'analyze' (deep-agent document analysis, no schema needed)."""
+    if pipeline not in PIPELINES:
+        raise HTTPException(status_code=400, detail=f"unknown pipeline '{pipeline}', use one of {sorted(PIPELINES)}")
+
+    schema_obj = None
+    if pipeline == "extract":
+        if not schema:
+            raise HTTPException(status_code=400, detail="the extract pipeline requires a schema")
+        try:
+            schema_obj = json.loads(schema)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=400, detail=f"schema is not valid JSON: {e}")
 
     content = await file.read()
     if not content:
@@ -51,24 +67,27 @@ async def upload(file: UploadFile = File(...), schema: str = Form(...)):
             binding_metadata={"blobName": doc_blob},
         )
 
+        topic_name, status_port = PIPELINES[pipeline]
         message = {
             "job_id": job_id,
             "doc_blob": doc_blob,
             "file_name": file.filename,
-            "schema": schema_obj,
         }
+        if schema_obj is not None:
+            message["schema"] = schema_obj
         client.publish_event(
             pubsub_name=PUBSUB_NAME,
-            topic_name=TOPIC_NAME,
+            topic_name=topic_name,
             data=json.dumps(message),
             data_content_type="application/json",
         )
 
-    logger.info("job %s: stored %s (%d bytes) and published to %s", job_id, doc_blob, len(content), TOPIC_NAME)
+    logger.info("job %s: stored %s (%d bytes) and published to %s", job_id, doc_blob, len(content), topic_name)
     return {
         "job_id": job_id,
         "doc_blob": doc_blob,
-        "status_url": f"http://localhost:8101/status/{job_id}",
+        "pipeline": pipeline,
+        "status_url": f"http://localhost:{status_port}/status/{job_id}",
     }
 
 
